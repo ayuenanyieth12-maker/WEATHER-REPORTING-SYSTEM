@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": -1.66,
+      "left": 13.3,
+      "rotate": 90,
+      "attrs": {}
+    },
+    { "type": "wokwi-dht22", "id": "dht1", "top": -95.7, "left": 13.8, "attrs": {} },
+    {
+      "type": "board-bmp180",
+      "id": "bmp1",
+      "top": 201.44,
+      "left": 33.34,
+      "rotate": 270,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "dht1:VCC", "esp:3V3", "red", [ "v19.2", "h115.2" ] ],
+    [ "dht1:GND", "esp:GND.1", "black", [ "v9.6", "h-38.4" ] ],
+    [ "dht1:SDA", "esp:15", "green", [ "v28.8", "h-86.3", "v115.2", "h48" ] ],
+    [ "esp:3V3", "bmp1:VCC", "green", [ "v0.15", "h48", "v105.6", "h-144" ] ],
+    [ "bmp1:GND", "esp:GND.1", "black", [ "v-19.2", "h-115.01", "v-134.4", "h86.4" ] ],
+    [ "bmp1:SDA", "esp:21", "green", [ "v-19.2", "h28.99" ] ],
+    [ "bmp1:SCL", "esp:22", "green", [ "v-9.6", "h57.79" ] ]
+  ],
+  "dependencies": {}
+}
