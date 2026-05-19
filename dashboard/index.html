@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather Reporting System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0a0f1e;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: #475569;
+      margin-top: 6px;
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(1.3); }
+    }
+
+    /* Alert banner */
+    #alert-banner {
+      display: none;
+      background: #7f1d1d;
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      padding: 14px 20px;
+      border-radius: 12px;
+      margin-bottom: 28px;
+      font-size: 0.95rem;
+      text-align: center;
+      animation: fadeIn .3s ease;
+    }
+
+    #alert-banner.show { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Stat cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 28px 24px;
+      text-align: center;
+      transition: border-color .3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 16px 16px 0 0;
+    }
+
+    .temp::before  { background: #f97316; }
+    .hum::before   { background: #38bdf8; }
+    .press::before { background: #a78bfa; }
+
+    .card .icon { font-size: 1.6rem; margin-bottom: 10px; }
+
+    .card .label {
+      font-size: 0.72rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 10px;
+    }
+
+    .card .value {
+      font-size: 2.8rem;
+      font-weight: 700;
+      line-height: 1;
+      transition: color .3s;
+    }
+
+    .card .unit {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    .temp  .value { color: #f97316; }
+    .hum   .value { color: #38bdf8; }
+    .press .value { color: #a78bfa; }
+
+    .card .trend {
+      font-size: 0.75rem;
+      margin-top: 10px;
+      color: #6b7280;
+    }
+
+    /* Charts */
+    .charts {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .chart-box {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .chart-header h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .chart-badge {
+      font-size: 0.72rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    .badge-temp  { background: #431407; color: #f97316; }
+    .badge-hum   { background: #082f49; color: #38bdf8; }
+    .badge-press { background: #2e1065; color: #a78bfa; }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 0.78rem;
+      color: #374151;
+    }
+
+    #timestamp { color: #374151; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🌤️ Weather Reporting System</h1>
+    <p><span class="live-dot"></span>Live data from ESP32 simulation · Auto-refreshes every 5 seconds</p>
+  </header>
+
+  <div id="alert-banner">
+    ⚠️ <strong>High Temperature Alert!</strong> Temperature has exceeded 26°C — please check conditions.
+  </div>
+
+  <div class="cards">
+    <div class="card temp">
+      <div class="icon">🌡️</div>
+      <div class="label">Temperature</div>
+      <div class="value" id="temp">--</div>
+      <div class="unit">°C</div>
+      <div class="trend" id="temp-trend"></div>
+    </div>
+    <div class="card hum">
+      <div class="icon">💧</div>
+      <div class="label">Humidity</div>
+      <div class="value" id="humidity">--</div>
+      <div class="unit">%</div>
+      <div class="trend" id="hum-trend"></div>
+    </div>
+    <div class="card press">
+      <div class="icon">🔵</div>
+      <div class="label">Pressure</div>
+      <div class="value" id="pressure">--</div>
+      <div class="unit">hPa</div>
+      <div class="trend" id="press-trend"></div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-box">
+      <div class="chart-header">
+        <h2>Temperature (°C)</h2>
+        <span class="chart-badge badge-temp">LIVE</span>
+      </div>
+      <canvas id="tempChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="chart-header">
+        <h2>Humidity (%)</h2>
+        <span class="chart-badge badge-hum">LIVE</span>
+      </div>
+      <canvas id="humChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="chart-header">
+        <h2>Pressure (hPa)</h2>
+        <span class="chart-badge badge-press">LIVE</span>
+      </div>
+      <canvas id="pressChart"></canvas>
+    </div>
+  </div>
+
+  <footer>
+    <p id="timestamp">Waiting for data...</p>
+    <p style="margin-top:6px">ESP32 · DHT22 · BMP180 · Node.js · SQLite</p>
+  </footer>
+
+  <script>
+    const API       = 'http://localhost:3000/data';
+    const TEMP_LIMIT = 26;
+    let prevTemp, prevHum, prevPress;
+
+    function trend(current, previous) {
+      if (previous == null) return '';
+      if (current > previous) return '▲ Rising';
+      if (current < previous) return '▼ Falling';
+      return '● Stable';
+    }
+
+    function makeChart(id, label, color) {
+      return new Chart(document.getElementById(id), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label,
+            data: [],
+            borderColor: color,
+            backgroundColor: color + '18',
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: color,
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          animation: { duration: 400 },
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              ticks: { color: '#4b5563', maxTicksLimit: 8 },
+              grid:  { color: '#1f2937' }
+            },
+            y: {
+              ticks: { color: '#4b5563' },
+              grid:  { color: '#1f2937' }
+            }
+          }
+        }
+      });
+    }
+
+    const tempChart  = makeChart('tempChart',  'Temperature', '#f97316');
+    const humChart   = makeChart('humChart',   'Humidity',    '#38bdf8');
+    const pressChart = makeChart('pressChart', 'Pressure',    '#a78bfa');
+
+    async function fetchData() {
+      try {
+        const res  = await fetch(API);
+        const data = await res.json();
+        const rows = data.slice().reverse();
+
+        const labels = rows.map(r => r.recorded_at.slice(11, 19));
+        const temps  = rows.map(r => r.temperature);
+        const hums   = rows.map(r => r.humidity);
+        const press  = rows.map(r => r.pressure);
+
+        const latest = rows[rows.length - 1];
+        if (latest) {
+          document.getElementById('temp').textContent     = latest.temperature.toFixed(1);
+          document.getElementById('humidity').textContent = latest.humidity.toFixed(1);
+          document.getElementById('pressure').textContent = latest.pressure.toFixed(2);
+
+          document.getElementById('temp-trend').textContent  = trend(latest.temperature, prevTemp);
+          document.getElementById('hum-trend').textContent   = trend(latest.humidity,    prevHum);
+          document.getElementById('press-trend').textContent = trend(latest.pressure,    prevPress);
+
+          prevTemp  = latest.temperature;
+          prevHum   = latest.humidity;
+          prevPress = latest.pressure;
+
+          // Alert
+          const banner = document.getElementById('alert-banner');
+          if (latest.temperature > TEMP_LIMIT) {
+            banner.classList.add('show');
+          } else {
+            banner.classList.remove('show');
+          }
+        }
+
+        [tempChart, humChart, pressChart].forEach(c => { c.data.labels = labels; });
+        tempChart.data.datasets[0].data  = temps;
+        humChart.data.datasets[0].data   = hums;
+        pressChart.data.datasets[0].data = press;
+        [tempChart, humChart, pressChart].forEach(c => c.update());
+
+        document.getElementById('timestamp').textContent =
+          'Last updated: ' + new Date().toLocaleTimeString();
+
+      } catch(err) {
+        console.error('Fetch error:', err);
+      }
+    }
+
+    fetchData();
+    setInterval(fetchData, 5000);
+  </script>
+
+</body>
+</html>
